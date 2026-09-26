@@ -3783,17 +3783,17 @@ function createE3(){
   const cones=pool(UCONE,new T.MeshStandardMaterial({roughness:0.9,flatShading:true}),3000,true,true);
   const poles=pool(UCYL,new T.MeshStandardMaterial({color:0x3b3f45,roughness:0.6,metalness:0.4}),5000,false);
   const lamps=pool(USPH,new T.MeshBasicMaterial(),3000,false,true);
-  const tiles=pool(UPLANE,new T.MeshBasicMaterial({transparent:true,opacity:0.55,depthWrite:false}),NN,false,true);
+  const tiles=pool(UPLANE,new T.MeshBasicMaterial({transparent:true,opacity:0.55,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-3,polygonOffsetUnits:-6}),NN,false,true);
   const flames=pool(UCONE,new T.MeshBasicMaterial({color:0xff7a1a,transparent:true,opacity:0.9}),400,false);
   const smoke=pool(USPH,new T.MeshStandardMaterial({color:0x6a6a70,transparent:true,opacity:0.45,depthWrite:false,roughness:1}),900,false);
   const walk=pool(UB,new T.MeshStandardMaterial({color:0xcbc8bd,roughness:0.92,map:(()=>{const [c,g]=canv(128);g.fillStyle='#d6d3c8';g.fillRect(0,0,128,128);for(let k=0;k<900;k++){const v=180+Math.floor(rnd()*60);g.fillStyle=`rgb(${v},${v},${v-6})`;g.fillRect(rnd()*128,rnd()*128,1.5,1.5);}g.fillStyle='rgba(0,0,0,0.25)';g.fillRect(0,0,128,2);g.fillRect(0,0,2,128);return texOf(c,true);})()}),24000,false);walk.receiveShadow=true;
-  const pads=pool(UPLANE,new T.MeshStandardMaterial({color:0xb7b4ab,roughness:0.9}),4000,false);pads.receiveShadow=true;
+  const pads=pool(UPLANE,new T.MeshStandardMaterial({color:0xb7b4ab,roughness:0.9,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-4}),4000,false);pads.receiveShadow=true;
   const pBody=pool(UB,new T.MeshStandardMaterial({roughness:0.32,metalness:0.45,envMapIntensity:1.1}),4000,true,true);
   const pGlass=pool(UB,new T.MeshStandardMaterial({color:0x1d2a36,roughness:0.15,metalness:0.5}),4000,false);
   const wetCan=document.createElement('canvas');wetCan.width=wetCan.height=N*4;const wetTex=new T.CanvasTexture(wetCan);
   let wetPainted=false;
   function paintWet(){const wet=weather==='rain',g=wetCan.getContext('2d');g.fillStyle='rgb(242,242,242)';g.fillRect(0,0,N*4,N*4);for(let i=0;i<NN;i++){const t=map[i];if(t===ROAD||t===WATER||ZONE_OF[t]===2||ZONE_OF[t]===3){g.fillStyle=t===WATER?'rgb(40,40,40)':t===ROAD?(wet?'rgb(70,70,70)':'rgb(195,195,195)'):(wet?'rgb(110,110,110)':'rgb(215,215,215)');g.fillRect((i%N)*4,((i/N)|0)*4,4,4);}}wetTex.needsUpdate=true;}
-  const aoDec=pool(UPLANE,new T.MeshBasicMaterial({color:0x000000,alphaMap:softRect,transparent:true,opacity:0.42,depthWrite:false}),4000,false);
+  const aoDec=pool(UPLANE,new T.MeshBasicMaterial({color:0x000000,alphaMap:softRect,transparent:true,opacity:0.42,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-4}),4000,false);
   const waterMat=new T.MeshStandardMaterial({color:0x1d4f80,roughness:0.28,metalness:0,transparent:true,opacity:0.88,normalMap:waterN,normalScale:new T.Vector2(0.3,0.3),envMapIntensity:0.22});
   const water=pool(UPLANE,waterMat,NN,false);water.receiveShadow=true;let waterDone=false;
   function glowPts(size,cap){const geo=new T.BufferGeometry(),pos=new Float32Array(cap*3),colA=new Float32Array(cap*3);geo.setAttribute('position',new T.BufferAttribute(pos,3).setUsage(T.DynamicDrawUsage));geo.setAttribute('color',new T.BufferAttribute(colA,3).setUsage(T.DynamicDrawUsage));
@@ -3819,6 +3819,7 @@ function createE3(){
     const cp=Math.cos(cam.pitch),sp=Math.sin(cam.pitch);
     const th=Hf(cam.tx,cam.tz);camera.position.set(cam.tx+Math.sin(cam.yaw)*cp*cam.dist,th+sp*cam.dist,cam.tz+Math.cos(cam.yaw)*cp*cam.dist);
     camera.lookAt(cam.tx,th,cam.tz);
+    {const nn=Math.max(0.04,cam.dist*0.02),ff=cam.dist*7+140;if(Math.abs(camera.near-nn)>nn*0.1||Math.abs(camera.far-ff)>ff*0.1){camera.near=nn;camera.far=ff;camera.updateProjectionMatrix();}}
   }
   // ---- structure sync ----
   let bObjs=new Map(), statVer=-1, treeKey='', sigObjs=[];
@@ -4060,8 +4061,9 @@ function createE3(){
     const h=hourOf(), elev=Math.sin((h-5.5)/14*Math.PI), el=Math.max(0,elev), n=nq/10;
     const az=(h-5.5)/14*Math.PI;
     const sx=Math.cos(az)*40,sz=-Math.sin(az)*18-14, sy=10+el*45;
-    sun.position.set(cam.tx+sx,sy,cam.tz+sz);sun.target.position.set(cam.tx,0,cam.tz);
-    const sc=Math.max(14,Math.min(60,cam.dist*0.95));const sc2=sun.shadow.camera;sc2.left=-sc;sc2.right=sc;sc2.top=sc;sc2.bottom=-sc;sc2.near=1;sc2.far=160;sc2.updateProjectionMatrix();
+    const sc=Math.pow(2,Math.ceil(Math.log2(Math.max(8,Math.min(64,cam.dist*0.95)))));const texel=2*sc/SM,stx=Math.round(cam.tx/texel/8)*texel*8,stz=Math.round(cam.tz/texel/8)*texel*8;
+    sun.position.set(stx+sx,sy,stz+sz);sun.target.position.set(stx,0,stz);
+    const sc2=sun.shadow.camera;if(sc2.right!==sc){sc2.left=-sc;sc2.right=sc;sc2.top=sc;sc2.bottom=-sc;sc2.near=1;sc2.far=160;sc2.updateProjectionMatrix();}
     const warm=Math.max(0,1-el*2.2);
     sun.color.setRGB(1,0.93-0.25*warm,0.84-0.4*warm);sun.intensity=el>0?0.35+el*1.05:0;
     moon.position.set(cam.tx-20,40,cam.tz+10);moon.target=sun.target;moon.intensity=n*0.22;
@@ -4091,7 +4093,7 @@ function createE3(){
     groundRedraw(){TOPMODE=true;try{drawGround();}finally{TOPMODE=false;}gtex.needsUpdate=true;},
     frame(dt,t){
       applyCam();
-      if(groundDirty&&(t-lastGroundT>350||!lastGroundT)){E.groundRedraw();groundDirty=false;lastGroundT=t;}
+      if(groundDirty&&(t-lastGroundT>2000||!lastGroundT)){E.groundRedraw();groundDirty=false;lastGroundT=t;}
       if(recalcVer!==statVer){statVer=recalcVer;syncStructures();syncStatic();treeKey='';}
       const tk=season()+snowDays+'|'+recalcVer;if(tk!==treeKey){treeKey=tk;syncTrees();}
       frameDyn(t);ovAcc+=dt;if(ovAcc>0.25||overlay===0){ovAcc=0;frameOverlay();}
